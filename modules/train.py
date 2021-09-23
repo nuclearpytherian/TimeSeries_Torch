@@ -29,7 +29,7 @@ class TimeClassifierTrainer:
                 loss = self.criterion(pred, label)
                 loss.backward()
                 self.optimizer.step()
-                train_loss += loss.item() / len(self.train_dataloader)
+                train_loss += loss.item()*len(x) / len(self.train_dataloader)
             self.scheduler.step()
             train_losses.append(train_loss)
 
@@ -37,7 +37,7 @@ class TimeClassifierTrainer:
             for x, label in tqdm(self.val_dataloader, desc="Validating"):
                 pred = self.model(x)
                 loss = self.criterion(pred, label)
-                val_loss += loss.item() / len(self.val_dataloader)
+                val_loss += loss.item()*len(x) / len(self.val_dataloader)
             val_losses.append(val_loss)
 
             print("Epoch {0}/{1}. Train loss {2:.4}. Val loss {3:.4}".format(i + 1, self.EPOCH, train_loss, val_loss))
