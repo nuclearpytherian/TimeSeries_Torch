@@ -20,11 +20,23 @@ def data_to_series(X, y, TIME_STEP):
 def Conv1d_output_dim(length_in, kernel_size, stride=1, padding=0, dilation=1):
     return (length_in + 2 * padding - dilation * (kernel_size - 1) - 1) // stride + 1
 
-def random_pandasDF(N, N_FEATURES, NUM_CLASSES):
-    data = pd.DataFrame(np.random.normal(20, 5, (N, N_FEATURES)))
-    data['y'] = np.random.choice(np.array(range(NUM_CLASSES)), N)
-    data.index = pd.date_range(start="1/1/2010", end="1/1/2015", periods=N)
-    return data
+
+def random_pandasDF(batch_size, N_FEATURES, NUM_CLASSES):
+    for i in range(NUM_CLASSES):
+        m = np.random.randint(5,100, 1)
+        data = pd.DataFrame(np.random.normal(m, 2, (batch_size*2, N_FEATURES)))
+        data['y'] = [i for _ in range(batch_size*2)]
+        tr_data = data[:batch_size]
+        val_data = data[batch_size:]
+        if i == 0:
+            tr_df = tr_data
+            val_df = val_data
+        else:
+            tr_df = pd.concat([tr_df, tr_data], axis=0)
+            val_df = pd.concat([val_df, val_data], axis=0)
+    tr_df.index = pd.date_range(start="1/1/2010", end="1/1/2015", periods=len(tr_df))
+    val_df.index = pd.date_range(start="1/1/2010", end="1/1/2015", periods=len(val_df))
+    return tr_df, val_df
 
 
 class PandasTimeClassifierDataset(Dataset):
