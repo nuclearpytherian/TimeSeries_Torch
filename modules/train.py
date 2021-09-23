@@ -5,7 +5,7 @@ import torch
 import time
 
 
-class TimeClassifierTrainer:
+class TimeTrainer:
 
     def __init__(self, train_dataloader, val_dataloader, model, criterion, optimizer, scheduler, early_stoper, EPOCH):
         self.train_dataloader = train_dataloader

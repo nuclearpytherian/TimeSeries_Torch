@@ -21,7 +21,7 @@ def Conv1d_output_dim(length_in, kernel_size, stride=1, padding=0, dilation=1):
     return (length_in + 2 * padding - dilation * (kernel_size - 1) - 1) // stride + 1
 
 
-def random_pandasDF(batch_size, N_FEATURES, NUM_CLASSES):
+def random_pandasDFClassifier(batch_size, N_FEATURES, NUM_CLASSES):
     for i in range(NUM_CLASSES):
         m = np.random.randint(5,100, 1)
         data = pd.DataFrame(np.random.normal(m, 2, (batch_size*2, N_FEATURES)))
@@ -39,19 +39,40 @@ def random_pandasDF(batch_size, N_FEATURES, NUM_CLASSES):
     return tr_df, val_df
 
 
-class PandasTimeClassifierDataset(Dataset):
+def random_pandasDFRegressor(batch_size, N_FEATURES):
+    cos = np.cos(list(range(batch_size * 2))) + np.array(list(range(batch_size * 2))) * 0.01
+    for i in range(N_FEATURES):
+        m = np.random.randint(5, 100, 1)
+        x = cos * m + np.random.normal(m/3,m/3,batch_size*2)
+        data = pd.DataFrame(x)
+        if i == 0:
+            df_cat = data
+        else:
+            df_cat = pd.concat([df_cat, data], axis=1)
+    df_cat['y'] = cos
+    df_cat.index = pd.date_range(start="1/1/2010", end="1/1/2015", periods=len(df_cat))
+    tr_data = df_cat[:batch_size]
+    val_data = df_cat[batch_size:]
+    return tr_data, val_data
 
-    def __init__(self, data_df, label_col, TIME_STEP, date_format="%Y/%m/%d %H:%M:%S"):
+
+class PandasTimeDataset(Dataset):
+
+    def __init__(self, data_df, label_col, TIME_STEP, mode:'classifier or regressor', date_format="%Y/%m/%d %H:%M:%S"):
         super().__init__()
         self.x = data_df.drop(label_col, axis=1).values
         self.y = data_df[label_col].values
         self.time = pd.to_datetime(data_df.index, format=date_format)
         self.label_col = label_col
         self.TIME_STEP = TIME_STEP
+        self.mode = mode
 
     def __getitem__(self, index):
         x_data, y_data = self.toTimeSeries()
-        x_data, y_data = torch.from_numpy(x_data).float(), torch.from_numpy(y_data).long()
+        if self.mode == 'classifier':
+            x_data, y_data = torch.from_numpy(x_data).float(), torch.from_numpy(y_data).long()
+        elif self.mode == 'regressor':
+            x_data, y_data = torch.from_numpy(x_data).float(), torch.from_numpy(y_data).float()
         return x_data[index], y_data[index]
 
     def __len__(self):
