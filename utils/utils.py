@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 import torch
+from sklearn.metrics import confusion_matrix
+
 
 def data_to_series(X, y, TIME_STEP):
     N = len(X)
@@ -90,3 +92,45 @@ class PandasTimeDataset(Dataset):
             output_X.append(t)
             output_y.append(self.y[i])
         return np.squeeze(np.array(output_X)), np.array(output_y)
+
+
+
+class Predictor:
+    def __init__(self, trained_model, dataloader):
+        self.model = trained_model
+        self.dataloader = dataloader
+
+    def __call__(self, dataloader):
+        preds = []
+        for i, (x, y) in enumerate(dataloader):
+            pred = self.model_predict(self.model, x)
+            preds.append(int(pred))
+            if i == len(dataloader)-1:
+                break
+        return preds
+
+    def model_predict(self, model, input):
+        if input.ndim == 1:
+            input = input.unsqueeze(0)
+        pred = model(input).data.max(1, keepdim=True)[1].squeeze()
+        return pred
+
+    def get_preds(self):
+        preds = []
+        labels = []
+        for i, (x, y) in enumerate(self.dataloader):
+            pred = self.model_predict(self.model, x)
+            preds.append(int(pred))
+            labels.append(int(y))
+            if i == len(self.dataloader) - 1:
+                break
+        return preds, labels
+
+    def get_accuracy(self):
+        preds, labels = self.get_preds()
+        return np.sum([1 for x, y in zip(preds, labels) if int(x) == int(y)]) / len(preds)
+
+    def confusion_matrix(self):
+        preds, labels = self.get_preds()
+        df = pd.DataFrame(confusion_matrix(preds, labels))
+        return df

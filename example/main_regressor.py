@@ -7,8 +7,8 @@ from modules.scheduler import CosineAnnealingWarmUpRestarts
 from modules.earlystop import EarlyStopping
 from torch import nn, optim
 from torch.utils.data import DataLoader
-
-
+from torch.optim.lr_scheduler import StepLR
+import torch
 
 if __name__ == "__main__":
     # Parameters
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     model = TimeConv1dLSTMNetRegressor(INPUT_DIM=N_FEATURES,TIME_STEP=TIME_STEP, HIDDEN_DIM=64, N_LAYER=2, DROPOUT=0.3, bidirectional=False)
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    scheduler = CosineAnnealingWarmUpRestarts(optimizer, T_0=150, T_mult=1, eta_max=0.1, T_up=10, gamma=0.5)
+    scheduler = StepLR(optimizer, step_size=10, gamma=0.8)
     early_stopping = EarlyStopping(patience=10, verbose=False)
 
     # Train set up
@@ -36,15 +36,22 @@ if __name__ == "__main__":
                                      model=model,
                                      criterion=criterion,
                                      optimizer=optimizer,
-                                     scheduler=None,
+                                     scheduler=scheduler,
                                      early_stoper=early_stopping,
                                      EPOCH=EPOCH)
     # Run training
     Training.train()
 
-    # Save model
-    Training.save_model(best_model=True)
-
     # Plot loss graph
     Training.plot_loss_graph()
+
+    # Save model
+    best_model = True
+    Training.save_model(best_model=best_model)
+
+    # Eval
+    load_model = TimeConv1dLSTMNetRegressor(INPUT_DIM=N_FEATURES,TIME_STEP=TIME_STEP, HIDDEN_DIM=64, N_LAYER=2, DROPOUT=0.3, bidirectional=False)
+    load_model.load_state_dict(torch.load('artifact/best_epoch_model.pt' if best_model == True else 'artifact/last_epoch_model.pt'))
+    load_model.eval()
+
 

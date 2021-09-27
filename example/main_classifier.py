@@ -1,17 +1,17 @@
 # Main
 
-from utils.utils import PandasTimeDataset, random_pandasDFClassifier
+from utils.utils import PandasTimeDataset, random_pandasDFClassifier, Predictor
 from modules.models import TimeConv1dLSTMNetClassifier, TimeLSTMNetClassifier
 from modules.train import TimeTrainer
-from modules.scheduler import CosineAnnealingWarmUpRestarts
+from torch.optim.lr_scheduler import StepLR
 from modules.earlystop import EarlyStopping
 from torch import nn, optim
 from torch.utils.data import DataLoader
-
+import torch
 
 if __name__ == "__main__":
     # Parameters
-    TIME_STEP = 2
+    TIME_STEP = 20
     N_FEATURES = 1
     NUM_CLASSES = 2
     EPOCH = 50
@@ -32,8 +32,8 @@ if __name__ == "__main__":
                                         DROPOUT=0.3,
                                         bidirectional=False)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    scheduler = CosineAnnealingWarmUpRestarts(optimizer, T_0=150, T_mult=1, eta_max=0.1, T_up=10, gamma=0.5)
+    optimizer = optim.Adam(model.parameters(), lr=0.001, eps=1e-8)
+    scheduler = StepLR(optimizer, step_size=10, gamma=0.8)
     early_stopping = EarlyStopping(patience=10, verbose=False)
 
     # Train set up
@@ -48,11 +48,31 @@ if __name__ == "__main__":
     # Run training
     Training.train()
 
-    # Save model
-    Training.save_model(best_model=True)
-
     # Plot loss graph
     Training.plot_loss_graph()
+
+    # Save model
+    best_model = True
+    Training.save_model(best_model=best_model)
+
+    # Eval
+    load_model = TimeConv1dLSTMNetClassifier(INPUT_DIM=N_FEATURES,
+                                        TIME_STEP=TIME_STEP,
+                                        HIDDEN_DIM=64,
+                                        N_LAYER=2,
+                                        OUTPUT_DIM=NUM_CLASSES,
+                                        DROPOUT=0.3,
+                                        bidirectional=False)
+    load_model.load_state_dict(torch.load('artifact/best_epoch_model.pt' if best_model == True else 'artifact/last_epoch_model.pt'))
+    load_model.eval()
+
+    predictor = Predictor(load_model, train_dataset)
+    acc = predictor.confusion_matrix()
+    print(acc)
+
+    predictor = Predictor(load_model, val_dataset)
+    acc = predictor.confusion_matrix()
+    print(acc)
 
 
 
