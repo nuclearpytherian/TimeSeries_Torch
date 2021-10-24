@@ -43,7 +43,7 @@ class Evaluator:
         print("Accuracy. {0:.4}".format(acc))
         print(matrix)
 
-    def model_plot(self, test_dataloader, dim=2, markersize=1.5):
+    def model_plot(self, test_dataloader, dim=2, markersize=1.5, label_dict=None):
 
         for i, (x,y) in enumerate(test_dataloader):
             x = x.to(self.device)
@@ -70,6 +70,9 @@ class Evaluator:
             for i, label in enumerate(Y_set):
                 idx = [i for i, x in enumerate(Ys) if x == label]
                 selected = preds[idx]
+
+                if label_dict is not None:
+                    label = label_dict[label]
                 plt.scatter(selected[:,0], selected[:,1], c=colors[i], s=markersize, label=label)
 
             plt.grid()
@@ -83,6 +86,9 @@ class Evaluator:
             for i, label in enumerate(Y_set):
                 idx = [i for i, x in enumerate(Ys) if x == label]
                 selected = preds[idx]
+
+                if label_dict is not None:
+                    label = label_dict[label]
                 ax.scatter(selected[:,0], selected[:,1], selected[:,3], c=colors[i], s=markersize, label=label)
 
             plt.grid()

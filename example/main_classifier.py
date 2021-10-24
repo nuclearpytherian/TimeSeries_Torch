@@ -16,7 +16,7 @@ if __name__ == "__main__":
     TIME_STEP = 20
     N_FEATURES = 10
     NUM_CLASSES = 4
-    EPOCH = 20
+    EPOCH = 2
 
     # Data set up
     train_data_df, val_data_df = random_pandasDFClassifier(batch_size=100, N_FEATURES=N_FEATURES, NUM_CLASSES=NUM_CLASSES)
@@ -69,5 +69,7 @@ if __name__ == "__main__":
                           PATH=model_path,
                           device_type='cpu')
     evaluator(train_dataloader)
+    label_dic = {0:'Type I', 1:'Type II', 2:'Type III', 3:'Type IV'}
+    evaluator.model_plot(train_dataloader, dim=3, markersize=2, label_dict=label_dic)
 
-    evaluator.model_plot(train_dataloader, markersize=2)
+

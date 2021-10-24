@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 
 
+
 class TimeLSTMNetClassifier(nn.Module):
     def __init__(self, INPUT_DIM, TIME_STEP, HIDDEN_DIM, N_LAYER, OUTPUT_DIM, DROPOUT, bidirectional=False):
         super().__init__()
