@@ -1,4 +1,4 @@
-
+# Train
 
 import os
 import torch
@@ -7,13 +7,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-class TimeTrainer:
 
-    def __init__(self, train_dataloader, val_dataloader, model, criterion, optimizer, scheduler, early_stoper, EPOCH):
+class Trainer:
+
+    def __init__(self, train_dataloader, val_dataloader, model, criterion, optimizer, EPOCH, scheduler=None, early_stoper=None, device=None):
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
-        self.model = model
-        self.criterion = criterion
+        if device is None:
+            device = torch.device("cpu")
+        self.device = device
+        self.model = model.to(device)
+        self.criterion = criterion.to(device)
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.early_stoper = early_stoper
@@ -31,12 +35,16 @@ class TimeTrainer:
 
             self.model.train()
             for x, label in self.train_dataloader:
+                x = x.to(self.device)
+                label = label.to(self.device)
+
                 self.optimizer.zero_grad()
                 pred = self.model(x)
                 loss = self.criterion(pred, label)
                 loss.backward()
                 self.optimizer.step()
-                train_loss += loss.item()*len(x) / len(self.train_dataloader)
+                train_loss += loss.item() * len(x) / len(self.train_dataloader)
+
             if self.scheduler != None:
                 self.scheduler.step()
 
@@ -44,9 +52,12 @@ class TimeTrainer:
 
             self.model.eval()
             for x, label in self.val_dataloader:
+                x = x.to(self.device)
+                label = label.to(self.device)
+
                 pred = self.model(x)
                 loss = self.criterion(pred, label)
-                val_loss += loss.item()*len(x) / len(self.val_dataloader)
+                val_loss += loss.item() * len(x) / len(self.val_dataloader)
             val_losses.append(val_loss)
 
             model_history.append(copy.deepcopy(self.model.state_dict()))
@@ -66,7 +77,7 @@ class TimeTrainer:
         end_time = time.time()
         self.trained_time = end_time - start_time
         print("---FINISHED---")
-        print("Trained time: {0} secs".format(round(self.trained_time,3)))
+        print("Trained time: {0} secs".format(round(self.trained_time, 3)))
 
     def save_model(self, best_model=True):
         if not os.path.isdir('artifact'):
@@ -75,10 +86,10 @@ class TimeTrainer:
             best_model_idx = np.argmin(np.array(self.val_losses))
             torch.save(self.model_history[best_model_idx], os.path.join('artifact', "best_epoch_model.pt"))
         else:
-            torch.save(self.model_history[len(self.val_losses)-1], os.path.join('artifact', "last_epoch_model.pt"))
+            torch.save(self.model_history[-1], os.path.join('artifact', "last_epoch_model.pt"))
 
     def plot_loss_graph(self):
-        fig, axes = plt.subplots(2,1, figsize=(10,6))
+        fig, axes = plt.subplots(2, 1, figsize=(10, 6))
         x = list(range(len(self.val_losses)))
         axes[0].plot(x, self.train_losses, "-o", color='blue')
         axes[0].set_title("Training loss")
@@ -90,5 +101,3 @@ class TimeTrainer:
         axes[1].grid()
         fig.tight_layout()
         plt.show()
-
-

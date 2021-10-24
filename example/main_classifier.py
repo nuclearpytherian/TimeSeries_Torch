@@ -1,20 +1,22 @@
 # Main
 
 from utils.utils import PandasTimeDataset, random_pandasDFClassifier, Predictor
-from modules.models import TimeConv1dLSTMNetClassifier, TimeLSTMNetClassifier
-from modules.train import TimeTrainer
+from modules.models import TimeConv1dLSTMNetClassifier
+from modules.train import Trainer
+from modules.evaluation import Evaluator
 from torch.optim.lr_scheduler import StepLR
 from modules.earlystop import EarlyStopping
 from torch import nn, optim
 from torch.utils.data import DataLoader
 import torch
 
+
 if __name__ == "__main__":
     # Parameters
     TIME_STEP = 20
-    N_FEATURES = 1
-    NUM_CLASSES = 2
-    EPOCH = 50
+    N_FEATURES = 10
+    NUM_CLASSES = 4
+    EPOCH = 20
 
     # Data set up
     train_data_df, val_data_df = random_pandasDFClassifier(batch_size=100, N_FEATURES=N_FEATURES, NUM_CLASSES=NUM_CLASSES)
@@ -24,27 +26,30 @@ if __name__ == "__main__":
     val_dataloader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
     # model set up
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = TimeConv1dLSTMNetClassifier(INPUT_DIM=N_FEATURES,
                                         TIME_STEP=TIME_STEP,
                                         HIDDEN_DIM=64,
-                                        N_LAYER=2,
+                                        N_LAYER=1,
                                         OUTPUT_DIM=NUM_CLASSES,
-                                        DROPOUT=0.3,
-                                        bidirectional=False)
+                                        DROPOUT=0.0,
+                                        bidirectional=True)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001, eps=1e-8)
     scheduler = StepLR(optimizer, step_size=10, gamma=0.8)
     early_stopping = EarlyStopping(patience=10, verbose=False)
 
     # Train set up
-    Training = TimeTrainer(train_dataloader=train_dataloader,
-                                     val_dataloader=val_dataloader,
-                                     model=model,
-                                     criterion=criterion,
-                                     optimizer=optimizer,
-                                     scheduler=None,
-                                     early_stoper=early_stopping,
-                                     EPOCH=EPOCH)
+    Training = Trainer(train_dataloader=train_dataloader,
+                       val_dataloader=val_dataloader,
+                        model=model,
+                        criterion=criterion,
+                        optimizer=optimizer,
+                        scheduler=scheduler,
+                        early_stoper=early_stopping,
+                        EPOCH=EPOCH,
+                       device=device)
+
     # Run training
     Training.train()
 
@@ -55,24 +60,14 @@ if __name__ == "__main__":
     best_model = True
     Training.save_model(best_model=best_model)
 
-    # Eval
-    load_model = TimeConv1dLSTMNetClassifier(INPUT_DIM=N_FEATURES,
-                                        TIME_STEP=TIME_STEP,
-                                        HIDDEN_DIM=64,
-                                        N_LAYER=2,
-                                        OUTPUT_DIM=NUM_CLASSES,
-                                        DROPOUT=0.3,
-                                        bidirectional=False)
-    load_model.load_state_dict(torch.load('artifact/best_epoch_model.pt' if best_model == True else 'artifact/last_epoch_model.pt'))
-    load_model.eval()
+    # Evaluation
+    if best_model:
+        model_path = 'artifact/best_epoch_model.pt'
+    else:
+        model_path = 'artifact/last_epoch_model.pt'
+    evaluator = Evaluator(model=model,
+                          PATH=model_path,
+                          device_type='cpu')
+    evaluator(train_dataloader)
 
-    predictor = Predictor(load_model, train_dataset)
-    acc = predictor.confusion_matrix()
-    print(acc)
-
-    predictor = Predictor(load_model, val_dataset)
-    acc = predictor.confusion_matrix()
-    print(acc)
-
-
-
+    evaluator.model_plot(train_dataloader, markersize=2)
